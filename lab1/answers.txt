@@ -12,8 +12,7 @@ Other acknowledgments:
 -------------------------------------------------------------------------------
 
 Response to Exercise 5:
-
-
+It's possiable that sys_getpid() will return a wrong value since the correct pid might be changed during excution of another process.
 
 Anything else you'd like us to know:
 
