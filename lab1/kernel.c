@@ -170,6 +170,12 @@ interrupt(registers_t *reg)
 		// for this register out of 'current->p_registers'.
 		current->p_state = P_ZOMBIE;
 		current->p_exit_status = current->p_registers.reg_eax;
+    if (current->p_wait != 0){
+      process_t* parent = &proc_array[current->p_wait];
+      parent->p_state = P_RUNNABLE;
+      parent->p_registers.reg_eax = current->p_exit_status;
+      run(parent);
+    }
 		schedule();
 
 	case INT_SYS_WAIT: {
@@ -188,8 +194,10 @@ interrupt(registers_t *reg)
 			current->p_registers.reg_eax = -1;
 		else if (proc_array[p].p_state == P_ZOMBIE)
 			current->p_registers.reg_eax = proc_array[p].p_exit_status;
-		else
-			current->p_registers.reg_eax = WAIT_TRYAGAIN;
+		else {
+      current->p_state = P_BLOCKED;
+      proc_array[p].p_wait = current->p_pid;
+    }
 		schedule();
 	}
 
@@ -222,7 +230,6 @@ static void copy_stack(process_t *dest, process_t *src);
 static pid_t
 do_fork(process_t *parent)
 {
-	// YOUR CODE HERE!
 	// First, find an empty process descriptor.  If there is no empty
 	//   process descriptor, return -1.  Remember not to use proc_array[0].
 	// Then, initialize that process descriptor as a running process
@@ -254,6 +261,7 @@ do_fork(process_t *parent)
   }
   process_t * child = &proc_array[available_pid];
   child->p_pid = available_pid;
+  child->p_wait = parent->p_pid;
   child->p_state = P_RUNNABLE;
   child->p_registers = parent->p_registers;
   child->p_registers.reg_eax = 0;
