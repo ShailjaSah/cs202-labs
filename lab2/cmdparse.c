@@ -209,13 +209,13 @@ cmd_alloc(void)
 void
 cmd_free(command_t *cmd)
 {
-	int i;
-
 	// It's OK to cmd_free(NULL).
 	if (!cmd)
 		return;
 
-	/* Your code here. */
+  free(cmd->subshell);
+  cmd_free(cmd->next);
+  free(cmd);
 }
 
 
