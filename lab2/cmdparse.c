@@ -308,7 +308,15 @@ cmd_parse(parsestate_t *parsestate)
              //     you will have to understand how the pieces that you
              //     have been given fit together. (It may be helpful to
              //     look over cmdparse.h again.)
-            /* Your code here. */
+     
+      if (i != 0){
+        goto error;
+      }
+      cmd->subshell = cmd_line_parse(parsestate, 1);
+      if (!cmd->subshell){
+        goto error;
+      }
+      
 			break;
 		default:
 			parse_ungettoken(parsestate);
@@ -320,7 +328,7 @@ cmd_parse(parsestate_t *parsestate)
 	// NULL-terminate the argv list
 	cmd->argv[i] = 0;
 
-	if (i == 0) {
+	if (i == 0 && cmd->subshell == NULL) {
 		/* Empty command */
 		cmd_free(cmd);
 		return NULL;
@@ -465,7 +473,6 @@ cmd_print(command_t *cmd, int indent)
 		printf("\n");
 		cmd_print(cmd->subshell, indent + 2);
 	}
-
 	printf("] ");
 	switch (cmd->controlop) {
 	case TOK_SEMICOLON:
