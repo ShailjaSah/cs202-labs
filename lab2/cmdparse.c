@@ -213,7 +213,15 @@ cmd_free(command_t *cmd)
 	if (!cmd)
 		return;
   
- 
+  while (cmd->argv[i]){
+    free(cmd->argv[i]);
+    i++;
+  }
+  for (i = 0; i < 3; i++){
+    if (cmd->redirect_filename[i]){
+      free(cmd->redirect_filename[i]);
+    }
+  }
   free(cmd->subshell);
   cmd_free(cmd->next);
   free(cmd);
