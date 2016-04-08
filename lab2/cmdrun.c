@@ -110,13 +110,18 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 	 * We've written some of the skeleton for you, but feel free to
 	 * change it.
 	 */
-
+  if (cmd->argv[0] && strcmp("exit", cmd->argv[0]) == 0){
+    if(cmd->argv[1]){
+      int status = strtol(cmd->argv[1], NULL, 10);
+      exit(status);
+    } 
+    exit(0);
+  }
 	// Create a pipe, if this command is the left-hand side of a pipe.
 	// Return -1 if the pipe fails.
 	if (cmd->controlop == CMD_PIPE) {
-		/* Your code here*/
+    pipe(pipefd);
 	}
-
 
 	// Fork the child and execute the command in that child.
 	// You will handle all redirections by manipulating file descriptors.
@@ -210,7 +215,57 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 	//    This introduces a potential race condition.
 	//    Explain what that race condition is, and fix it.
 	//    Hint: Investigate fchdir().
-	/* Your code here */
+  if((pid = fork()) != 0){
+    *pass_pipefd = STDIN_FILENO;
+    if (cmd->controlop == CMD_PIPE){
+      close(pipefd[1]);
+      *pass_pipefd = pipefd[0];
+    
+    }
+    if (!cmd->argv[0]){
+      return pid;
+    }
+    if (strcmp("cd", cmd->argv[0]) == 0){
+      chdir(cmd->argv[1]);
+    }
+    
+  } else {
+    dup2(*pass_pipefd, STDIN_FILENO);
+    if (cmd->redirect_filename[0]){
+      close(0);
+      open(cmd->redirect_filename[0], O_RDONLY);
+    }
+    if (cmd->redirect_filename[1]){
+      close(1);
+      open(cmd->redirect_filename[1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    }
+    if (cmd->redirect_filename[2]){
+      close(2);
+      open(cmd->redirect_filename[2], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    }
+    if (cmd->controlop == CMD_PIPE){
+      dup2(pipefd[1], STDOUT_FILENO);
+      close(pipefd[1]);
+    }
+    if (!cmd->argv){
+      exit(0);
+    }
+    if (cmd->subshell){
+      int status = cmd_line_exec(cmd->subshell);
+      if (status != 0){
+        exit(5);
+      }
+      exit(0);
+    } 
+    if (strcmp("cd", cmd->argv[0]) == 0){
+      if (chdir(cmd->argv[1])){
+        exit(1);
+      }
+      exit(0);
+    }
+    execvp(cmd->argv[0], cmd->argv);
+    exit(1);
+  }
 
 	// return the child process ID
 	return pid;
@@ -218,7 +273,7 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 
 
 /* cmd_line_exec(cmdlist)
- *
+ 
  *   Execute the command list.
  *
  *   Execute each individual command with 'cmd_exec'.
@@ -253,17 +308,60 @@ cmd_line_exec(command_t *cmdlist)
 				    // Read the manual page for waitpid() to
 				    // see how to get the command's exit
 				    // status (cmd_status) from this value.
+    pid_t pid = cmd_exec(cmdlist, &pipefd);
 
-		// EXERCISE: Fill out this function!
-		// If an error occurs in cmd_exec, feel free to abort().
+    if(pid < 0){
+      goto error;
+    }
 
-		/* Your code here */
-
+    switch(cmdlist->controlop){
+    case CMD_END:
+    case CMD_SEMICOLON:
+      {
+        waitpid(pid, &wp_status, 0);
+        if (WIFEXITED(wp_status)){
+          cmd_status = WEXITSTATUS(wp_status);
+        }
+        break;
+      }
+    case CMD_AND:
+      {
+        waitpid(pid, &wp_status, 0);
+        if (WIFEXITED(wp_status)){
+          cmd_status = WEXITSTATUS(wp_status);
+        }
+        if (cmd_status != 0){
+          goto done; 
+        }
+        break;
+      }
+    case CMD_OR:
+      {
+        waitpid(pid, &wp_status, 0);
+        if (WIFEXITED(wp_status)){
+          cmd_status = WEXITSTATUS(wp_status);
+        }
+        if (cmd_status == 0){
+          goto done;
+        }
+        break;
+      }
+    case CMD_PIPE:
+    case CMD_BACKGROUND:
+      {
+        cmd_status = 0;
+        break;
+      }
+    default:
+      goto error;
+    } 
 		cmdlist = cmdlist->next;
 	}
 
         while (waitpid(0, 0, WNOHANG) > 0);
-
 done:
+
 	return cmd_status;
+ error:
+  abort();
 }
