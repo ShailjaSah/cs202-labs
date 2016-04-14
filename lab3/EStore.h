@@ -72,6 +72,7 @@ class EStore {
   double store_discount;
   smutex_t lock;
   scond_t available;
+  smutex_t locks[INVENTORY_SIZE];
     public:
 
     explicit EStore(bool enableFineMode);

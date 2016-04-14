@@ -207,7 +207,16 @@ buy_item_handler(void *args)
 void
 buy_many_items_handler(void *args)
 {
-    // TODO: Your code here.
+  BuyManyItemsReq* rq = (BuyManyItemsReq *) args;
+  printf("Handing BuyManyItemsReq : item_id: ");
+  for (size_t i = 0; i < rq->item_ids.size(); i++){
+    printf("%d ", rq->item_ids[i]);
+  }
+  printf("\n");
+  fflush(stdout);
+  EStore * es = rq->store;
+  es->buyManyItems(&rq->item_ids, rq->budget);
+  delete rq;
 }
 
 /*
