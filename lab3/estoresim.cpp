@@ -1,8 +1,9 @@
 #include <cstring>
 #include <cstdlib>
-
+#include <cstdio>
 #include "EStore.h"
 #include "TaskQueue.h"
+#include "RequestGenerator.h"
 
 class Simulation
 {
@@ -42,7 +43,11 @@ class Simulation
 static void*
 supplierGenerator(void* arg)
 {
-    // TODO: Your code here.
+  Simulation *simu = (Simulation *) arg;
+  SupplierRequestGenerator srg(&simu->supplierTasks) ;
+  srg.enqueueTasks(simu->maxTasks, &simu->store);
+  srg.enqueueStops(simu->numSuppliers);
+  sthread_exit();
     return NULL; // Keep compiler happy.
 }
 
@@ -73,8 +78,12 @@ supplierGenerator(void* arg)
 static void*
 customerGenerator(void* arg)
 {
-    // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+  Simulation* simu = (Simulation *) arg;
+  CustomerRequestGenerator crg(&simu->customerTasks, simu->store.fineModeEnabled());
+  crg.enqueueTasks(simu->maxTasks, &simu->store);
+  crg.enqueueStops(simu->numCustomers);
+  sthread_exit();
+  return NULL; // Keep compiler happy.
 }
 
 /*
@@ -94,8 +103,12 @@ customerGenerator(void* arg)
 static void*
 supplier(void* arg)
 {
-    // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+  while(true){
+    Simulation *simu = (Simulation *) arg;
+    Task task = simu->supplierTasks.dequeue();
+    task.handler(task.arg);
+  }
+     return NULL; // Keep compiler happy.
 }
 
 /*
@@ -115,8 +128,12 @@ supplier(void* arg)
 static void*
 customer(void* arg)
 {
-    // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+  while(true){
+    Simulation *simu = (Simulation *) arg;
+    Task task = simu->customerTasks.dequeue();
+    task.handler(task.arg);
+  }
+  return NULL; // Keep compiler happy.
 }
 
 /*
@@ -145,7 +162,47 @@ customer(void* arg)
 static void
 startSimulation(int numSuppliers, int numCustomers, int maxTasks, bool useFineMode)
 {
-    // TODO: Your code here.
+  
+  Simulation *simu = new Simulation(useFineMode);
+  simu->maxTasks = maxTasks;
+  simu->numSuppliers = numSuppliers;
+  simu->numCustomers = numCustomers;
+
+  sthread_t supplierT; 
+  sthread_t customerT; 
+
+  sthread_create(&supplierT, supplierGenerator, simu);
+  sthread_create(&customerT, customerGenerator, simu);
+
+  sthread_t *stid = new sthread_t[numSuppliers];
+  sthread_t *ctid = new sthread_t[numCustomers];
+  
+  for (int i = 0; i < numSuppliers; i++){
+    sthread_create(&stid[i], supplier, simu);
+  }
+  for (int i = 0; i < numCustomers; i++){
+    sthread_create(&ctid[i], customer, simu);
+  }
+
+
+  sthread_join(supplierT);
+  Printf("Supplier generator Recycled");
+  sthread_join(customerT);
+  Printf("Customer Generator Recycled");
+  for (int i = 0; i < numSuppliers; i++){
+    sthread_join(stid[i]);
+  }
+  Printf("NS RECYCLED");
+  fflush(stdout);
+  for (int i = 0; i < numCustomers; i++){
+    sthread_join(ctid[i]);
+  }
+  Printf("NC_RECYCLED");
+  fflush(stdout);
+
+  delete[] stid;
+  delete[] ctid;
+  delete simu;
 }
 
 int main(int argc, char **argv)

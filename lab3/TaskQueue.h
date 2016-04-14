@@ -2,6 +2,8 @@
 
 
 #include "sthread.h"
+#include <deque>
+#include <cstdio>
 
 typedef void (*handler_t) (void *); 
 
@@ -21,8 +23,9 @@ struct Task {
  */
 class TaskQueue {
     private:
-    // TODO: More needed here.
-
+  smutex_t lock;
+  scond_t queue_empty;
+  std::deque<Task> dq;
     public:
     TaskQueue();
     ~TaskQueue();
@@ -34,3 +37,4 @@ class TaskQueue {
     bool empty();
 };
 
+void Printf(char *);

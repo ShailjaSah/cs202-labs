@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-
+#include "sthread.h"
 #include "Request.h"
 
 /* 
@@ -68,8 +68,10 @@ class EStore {
     private:
     Item inventory[INVENTORY_SIZE];
     const bool fineMode;
-    // TODO: More needed here.
-
+  double shipping_cost;
+  double store_discount;
+  smutex_t lock;
+  scond_t available;
     public:
 
     explicit EStore(bool enableFineMode);

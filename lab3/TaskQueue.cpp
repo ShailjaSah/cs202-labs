@@ -1,16 +1,22 @@
-
 #include "TaskQueue.h"
 
+void Printf(char * str){
+  puts(str);
+  fflush(stdout);
+}
 TaskQueue::
 TaskQueue()
 {
-    // TODO: Your code here.
+  smutex_init(&lock);
+  scond_init(&queue_empty);
 }
 
 TaskQueue::
 ~TaskQueue()
 {
-    // TODO: Your code here.
+  Printf("I am Destroying");
+  scond_destroy(&queue_empty);
+  smutex_destroy(&lock);
 }
 
 /*
@@ -27,8 +33,10 @@ TaskQueue::
 int TaskQueue::
 size()
 {
-    // TODO: Your code here.
-    return -999; // Keep compiler happy until routine done.
+  smutex_lock(&lock);
+  int size = dq.size();
+  smutex_unlock(&lock);
+  return size;
 }
 
 /*
@@ -45,8 +53,10 @@ size()
 bool TaskQueue::
 empty()
 {
-    // TODO: Your code here.
-    return false; // Keep compiler happy until routine done.
+  smutex_lock(&lock);
+  bool empty = dq.empty();
+  smutex_unlock(&lock);
+  return empty; // Keep compiler happy until routine done.
 }
 
 /*
@@ -63,7 +73,10 @@ empty()
 void TaskQueue::
 enqueue(Task task)
 {
-    // TODO: Your code here.
+  smutex_lock(&lock);
+  dq.push_back(task);
+  scond_signal(&queue_empty, &lock);
+  smutex_unlock(&lock);
 }
 
 /*
@@ -81,7 +94,13 @@ enqueue(Task task)
 Task TaskQueue::
 dequeue()
 {
-    // TODO: Your code here.
-    return Task(); // Keep compiler happy until routine done.
+  smutex_lock(&lock);
+  while(dq.empty()){
+    scond_wait(&queue_empty, &lock);
+  }
+  Task t = dq.front();
+  dq.pop_front();
+  smutex_unlock(&lock);
+  return t;
 }
 

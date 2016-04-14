@@ -6,7 +6,7 @@ using namespace std;
 
 
 Item::
-Item() : valid(false)
+Item() : valid(false), quantity(0)
 {
 }
 
@@ -20,13 +20,15 @@ EStore::
 EStore(bool enableFineMode)
     : fineMode(enableFineMode)
 {
-    // TODO: Your code here.
+  smutex_init(&lock);
+  scond_init(&available);
 }
 
 EStore::
 ~EStore()
 {
-    // TODO: Your code here.
+  smutex_destroy(&lock);
+  scond_destroy(&available);
 }
 
 /*
@@ -63,8 +65,16 @@ void EStore::
 buyItem(int item_id, double budget)
 {
     assert(!fineModeEnabled());
-
-    // TODO: Your code here.
+    if (item_id < 0 || item_id > INVENTORY_SIZE){
+      return;
+    }
+    smutex_lock(&lock);
+    Item item = inventory[item_id];
+    while (!item.valid|| item.quantity == 0 || item.price * (1 - item.discount) > budget){
+      scond_wait(&available, &lock);
+    }
+    item.quantity--;
+    smutex_unlock(&lock);
 }
 
 /*
@@ -136,7 +146,20 @@ buyManyItems(vector<int>* item_ids, double budget)
 void EStore::
 addItem(int item_id, int quantity, double price, double discount)
 {
-    // TODO: Your code here.
+  
+  assert(item_id < INVENTORY_SIZE);
+  smutex_lock(&lock);
+  Item item = inventory[item_id];
+  if (item.valid){
+    smutex_unlock(&lock);
+    return;
+  }
+  item.valid = true;
+  item.quantity = quantity;
+  item.price = price;
+  item.discount = discount;
+  scond_broadcast(&available, &lock);
+  smutex_unlock(&lock);
 }
 
 /*
@@ -157,7 +180,10 @@ addItem(int item_id, int quantity, double price, double discount)
 void EStore::
 removeItem(int item_id)
 {
-    // TODO: Your code here.
+  assert(item_id < INVENTORY_SIZE);
+  smutex_lock(&lock);
+  inventory[item_id].valid = false;
+  smutex_unlock(&lock);
 }
 
 /*
@@ -175,7 +201,11 @@ removeItem(int item_id)
 void EStore::
 addStock(int item_id, int count)
 {
-    // TODO: Your code here.
+  assert(item_id < INVENTORY_SIZE);
+  smutex_lock(&lock);
+  inventory[item_id].quantity += count;
+  scond_broadcast(&available, &lock);
+  smutex_unlock(&lock);
 }
 
 /*
@@ -195,7 +225,10 @@ addStock(int item_id, int count)
 void EStore::
 priceItem(int item_id, double price)
 {
-    // TODO: Your code here.
+  assert(item_id < INVENTORY_SIZE);
+  smutex_lock(&lock);
+  inventory[item_id].price = price;
+  smutex_unlock(&lock);
 }
 
 /*
@@ -215,7 +248,10 @@ priceItem(int item_id, double price)
 void EStore::
 discountItem(int item_id, double discount)
 {
-    // TODO: Your code here.
+  assert(item_id < INVENTORY_SIZE);
+  smutex_lock(&lock);
+  inventory[item_id].discount = discount;
+  smutex_unlock(&lock);
 }
 
 /*
@@ -233,7 +269,13 @@ discountItem(int item_id, double discount)
 void EStore::
 setShippingCost(double cost)
 {
-    // TODO: Your code here.
+  smutex_lock(&lock);
+  bool decresed = cost < shipping_cost;
+  shipping_cost = cost;
+  if (decresed){
+    scond_broadcast(&available, &lock);
+  }
+  smutex_unlock(&lock);
 }
 
 /*
@@ -251,7 +293,13 @@ setShippingCost(double cost)
 void EStore::
 setStoreDiscount(double discount)
 {
-    // TODO: Your code here.
+  smutex_lock(&lock);
+  bool increased = discount > store_discount;
+  store_discount = discount;
+  if (increased){
+    scond_broadcast(&available, &lock);
+  }
+  smutex_unlock(&lock);
 }
 
 

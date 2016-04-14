@@ -80,7 +80,14 @@ enqueueTasks(int maxTasks, EStore* store)
 void RequestGenerator::
 enqueueStops(int num)
 {
-    // TODO: Your code here.
+  taskCount = 0;
+  while (taskCount < num || num < 0){
+    Task task;
+    task.arg = NULL;
+    task.handler = stop_handler;
+    taskQueue->enqueue(task);
+    taskCount++;
+  }
 }
 
 SupplierRequestGenerator::

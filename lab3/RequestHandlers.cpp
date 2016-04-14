@@ -1,4 +1,4 @@
-
+#include "RequestHandlers.h"
 /*
  * ------------------------------------------------------------------
  * add_item_handler --
@@ -15,7 +15,12 @@
 void 
 add_item_handler(void *args)
 {
-    // TODO: Your code here.
+  AddItemReq* rq = (AddItemReq*)args;
+  printf("Handling AddItemReq:item_id: %d quantity: %d rq->price: %f rq->discount: %f \n", rq->item_id, rq->quantity, rq->price, rq->discount);
+  fflush(stdout);
+  EStore* e = rq->store;
+  e->addItem(rq->item_id, rq->quantity, rq->price, rq->discount);
+  delete rq;
 }
 
 /*
@@ -34,7 +39,12 @@ add_item_handler(void *args)
 void 
 remove_item_handler(void *args)
 {
-    // TODO: Your code here.
+  RemoveItemReq* rq = (RemoveItemReq*) args;
+  printf("Handling RemoveItemReq :item_id: %d\n", rq->item_id);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->removeItem(rq->item_id);
+  delete rq;
 }
 
 /*
@@ -53,7 +63,12 @@ remove_item_handler(void *args)
 void 
 add_stock_handler(void *args)
 {
-    // TODO: Your code here.
+  AddStockReq *rq = (AddStockReq *) args;
+  printf("Handling AddStockReq:item_id: %d additional_stock: %d\n", rq->item_id, rq->additional_stock);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->addStock(rq->item_id, rq->additional_stock);
+  delete rq;
 }
 
 /*
@@ -72,7 +87,12 @@ add_stock_handler(void *args)
 void 
 change_item_price_handler(void *args)
 {
-    // TODO: Your code here.
+  ChangeItemPriceReq* rq = (ChangeItemPriceReq *) args;
+  printf("Handling ChangeItemPriceReq:item_id: %d new_price:%f\n", rq->item_id, rq->new_price);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->priceItem(rq->item_id, rq->new_price);
+  delete rq;
 }
 
 /*
@@ -91,7 +111,12 @@ change_item_price_handler(void *args)
 void 
 change_item_discount_handler(void *args)
 {
-    // TODO: Your code here.
+  ChangeItemDiscountReq* rq = (ChangeItemDiscountReq *) args;
+  printf("Handling ChangeItemDiscountReq:item_id: %d new_discount: %f\n", rq->item_id, rq->new_discount);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->discountItem(rq->item_id, rq->new_discount);
+  delete rq;
 }
 
 /*
@@ -110,7 +135,12 @@ change_item_discount_handler(void *args)
 void 
 set_shipping_cost_handler(void *args)
 {
-    // TODO: Your code here.
+  SetShippingCostReq* rq = (SetShippingCostReq* ) args;
+  printf("Handling SetShippingCostReq: new_cost %f\n", rq->new_cost);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->setShippingCost(rq->new_cost);
+  delete rq;
 }
 
 /*
@@ -129,7 +159,12 @@ set_shipping_cost_handler(void *args)
 void
 set_store_discount_handler(void *args)
 {
-    // TODO: Your code here.
+  SetStoreDiscountReq* rq = (SetStoreDiscountReq *) args;
+  printf("Handling SetStoreDiscountReq: new_discount: %f\n", rq->new_discount);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->setStoreDiscount(rq->new_discount);
+  delete rq;
 }
 
 /*
@@ -148,7 +183,12 @@ set_store_discount_handler(void *args)
 void
 buy_item_handler(void *args)
 {
-    // TODO: Your code here.
+  BuyItemReq* rq = (BuyItemReq *) args;
+  printf("Handling BuyItemReq:item_id: %d, budget: %f\n", rq->item_id, rq->budget);
+  fflush(stdout);
+  EStore* es = rq->store;
+  es->buyItem(rq->item_id, rq->budget);
+  delete rq;
 }
 
 /*
@@ -184,6 +224,8 @@ buy_many_items_handler(void *args)
 void 
 stop_handler(void* args)
 {
-    // TODO: Your code here.
+  fflush(stdout);
+  printf("Thread Exit\n");
+  sthread_exit();
 }
 
