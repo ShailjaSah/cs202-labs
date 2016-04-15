@@ -25,9 +25,10 @@ pmain(void)
 
 	for (i = 0; i < RUNCOUNT; i++) {
 		// Write characters to the console, yielding after each one.
-		*cursorpos++ = PRINTCHAR;
+    *((uint16_t *)fetch_and_add((uint32_t *) &cursorpos, 2)) = PRINTCHAR;
 		sys_yield();
 	}
+
   sys_exit(0);
 	// Yield forever.
 	while (1)
