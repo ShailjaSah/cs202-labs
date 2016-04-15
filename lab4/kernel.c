@@ -46,7 +46,6 @@ static process_t proc_array[NPROCS];
 // This is kept up to date by the run() function, in x86.c.
 process_t *current;
 
-int zero = 0;
 // The preferred scheduling algorithm.
 int scheduling_algorithm;
 
@@ -93,6 +92,8 @@ start(void)
 
 		// Mark the process as runnable!
 		proc->p_state = P_RUNNABLE;
+
+    proc->p_priority = 500;
 	}
 
 	// Initialize the cursor-position shared variable to point to the
@@ -100,7 +101,7 @@ start(void)
 	cursorpos = (uint16_t *) 0xB8000;
 
 	// Initialize the scheduling algorithm.
-	scheduling_algorithm = 0;
+	scheduling_algorithm = 2;
 
 	// Switch to the first process.
 	run(&proc_array[1]);
@@ -147,7 +148,8 @@ interrupt(registers_t *reg)
 		// 'sys_user*' are provided for your convenience, in case you
 		// want to add a system call.
 		/* Your code here (if you want). */
-		run(current);
+    current->p_priority = current->p_registers.reg_eax;
+    schedule();
 
 	case INT_SYS_USER2:
 		/* Your code here (if you want). */
@@ -186,7 +188,7 @@ schedule(void)
 {
 	pid_t pid = current->p_pid;
 
-	if (scheduling_algorithm == 0)
+	if (scheduling_algorithm == 0) //Round Robin? scheduling
 		while (1) {
 			pid = (pid + 1) % NPROCS;
 
@@ -197,6 +199,35 @@ schedule(void)
 				run(&proc_array[pid]);
 		}
 
+  if (scheduling_algorithm == 1){
+    while (1){
+      pid = 1;
+      while (pid < NPROCS){
+        if (proc_array[pid].p_state == P_RUNNABLE){
+          run(&proc_array[pid]);
+        }
+        pid++;
+      }
+    }
+  }
+
+  if (scheduling_algorithm == 2){
+    while (1){
+      int min = 1000;
+      pid = 0;
+      int i;
+      for (i = 0; i < NPROCS; i++){
+        if (proc_array[i].p_state == P_RUNNABLE &&
+            proc_array[i].p_priority < min){
+          min = proc_array[i].p_priority;
+          pid = i;
+        }
+      }
+      if (pid != 0){
+        run(&proc_array[pid]);
+      }
+    }
+  }
 	// If we get here, we are running an unknown scheduling algorithm.
 	cursorpos = console_printf(cursorpos, 0x100, "\nUnknown scheduling algorithm %d\n", scheduling_algorithm);
 	while (1)

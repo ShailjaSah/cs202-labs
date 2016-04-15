@@ -28,7 +28,7 @@ pmain(void)
 		*cursorpos++ = PRINTCHAR;
 		sys_yield();
 	}
-
+  sys_exit(0);
 	// Yield forever.
 	while (1)
 		sys_yield();
