@@ -81,6 +81,34 @@ int fork(void);
 
 static void process_setup(pid_t pid, int program_number);
 
+
+
+x86_pagetable *copy_pagetable(x86_pagetable *pagetable, int8_t owner){
+  x86_pagetable *pt = 0;
+  x86_pagetable *pt2 = 0;
+  for (int i = 0; i < NPAGES; i++){
+    pt = (x86_pagetable *)PAGEADDRESS(i);
+    if (physical_page_alloc((uintptr_t) pt, owner) == 0){
+      break;
+    }
+  }
+  for (int i = 0; i < NPAGES; i++){
+    pt2 = (x86_pagetable *)PAGEADDRESS(i);
+    if (physical_page_alloc((uintptr_t) pt2, owner) == 0){
+      break;
+    }
+  }
+
+  memset(pt, 0, PAGESIZE);
+
+  pt->entry[0] = (x86_pageentry_t) pt2 | PTE_P | PTE_U | PTE_W;
+
+  memset(pt2, 0, PAGESIZE);
+  memcpy(pt2, (x86_pagetable *)PTE_ADDR(pagetable->entry[0]), sizeof(x86_pagetable));
+  return pt;
+}
+
+
 void kernel(const char* command) {
     hardware_init();
     pageinfo_init();
@@ -143,8 +171,9 @@ void process_setup(pid_t pid, int program_number) {
     process_init(&processes[pid], 0);
 
     // Exercise 2: your code here
-    processes[pid].p_pagetable = kernel_pagetable;
-    ++pageinfo[PAGENUMBER(kernel_pagetable)].refcount;
+    processes[pid].p_pagetable = copy_pagetable(kernel_pagetable, pid);
+    virtual_memory_map(processes[pid].p_pagetable, PROC_START_ADDR, PROC_START_ADDR,
+                       MEMSIZE_PHYSICAL - PROC_START_ADDR, PTE_W);
     int r = program_load(&processes[pid], program_number);
     assert(r >= 0);
 
