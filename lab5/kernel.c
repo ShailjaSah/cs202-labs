@@ -98,26 +98,29 @@ void kernel(const char* command) {
     }
 
     // Exercise 1: your code here
-    //  
+    //
     //  Note that by the time the code gets to this point, the virtual
     //  memory mapping is set up to be the identity mapping (as noted in
     //  the lab description). (Use your code navigation skills to search
     //  for previous invocations of virtual_memory_map.) Furthermore,
     //  all processes have access to all memory.
     //
-    //  Your job is to use virtual_memory_map to 
+    //  Your job is to use virtual_memory_map to
     //    (1) _restrict_ processes from accessing virtual addresses
     //    that "belong" to the kernel, and
     //    (2) allow processes to access the single page beginning at the
     //    address 'console'.
     //
     // Hints:
-    //  * Call virtual_memory_map twice. 
+    //  * Call virtual_memory_map twice.
     //  * For (1), above, the part of each process's address space
     //    that "belongs" to the kernel is virtual addresses
     //    [0,PROC_START_ADDR). This is indicated in the lab description,
     //    and we repeat it in this hint.
-
+    virtual_memory_map(kernel_pagetable, 0, 0,
+                       PROC_START_ADDR, PTE_P | PTE_W);
+    virtual_memory_map(kernel_pagetable, (uintptr_t)console,(uintptr_t) console,
+                       PAGESIZE, PTE_P | PTE_W | PTE_U);
     if (command && strcmp(command, "fork") == 0)
         process_setup(1, 4);
     else if (command && strcmp(command, "forkexit") == 0)
@@ -156,7 +159,7 @@ void process_setup(pid_t pid, int program_number) {
 
 
 // physical_page_alloc(addr, owner)
-//    The purpose of this function is to allocate a physical page 
+//    The purpose of this function is to allocate a physical page
 //    (with physical address "addr" to the given owner). This function
 //    fails if the requested physical page was in fact already allocated.
 //    Returns -1 on failure and 0 on success. Used by the program loader.
