@@ -274,25 +274,24 @@ inode_free_block(struct inode *ino, uint32_t filebno)
 // free_block to free the meta-data blocks (e.g. the indirect block).
 static void
 inode_truncate_blocks(struct inode *ino, uint32_t newsize)
+
 {
-	int r;
 	uint32_t bno, old_nblocks, new_nblocks;
   old_nblocks = ino->i_size / BLKSIZE;
   old_nblocks = ino->i_size % BLKSIZE ? old_nblocks + 1 : old_nblocks;
   new_nblocks = newsize / BLKSIZE;
   new_nblocks = newsize % BLKSIZE ? newsize + 1 : newsize;
 
-  for (bno = new_nblocks; bno < old_nblocks; bno++){
+  for (bno = new_nblocks; bno < old_nblocks  ; bno++){
     inode_free_block(ino, bno);
   }
-  if (new_nblocks < N_DIRECT + N_INDIRECT){
-    if (ino->i_double){
+  if (new_nblocks < N_DIRECT + N_INDIRECT && ino->i_double){
       uint32_t *ptr;
       for (ptr = diskaddr(ino->i_double); ptr < (uint32_t *)diskaddr(ino->i_double) + BLKSIZE / 4; ptr++){
-        free_block(*ptr);
+        if (*ptr)
+          free_block(*ptr);
       }
       free_block(ino->i_double);
-    }
   }
   if (new_nblocks < N_DIRECT && ino->i_indirect){
     free_block(ino->i_indirect);
@@ -372,8 +371,22 @@ inode_free(uint32_t inum)
 int
 inode_unlink(const char *path)
 {
-	// LAB: Your code here.
-	panic("inode_unlink not implemented");
+  int r;
+  struct inode *pdir, *pino;
+  struct dirent *pent;
+  char lastelem[NAME_MAX];
+  r = walk_path(path, &pdir, &pino, &pent, lastelem);
+  if (r < 0 || pino == NULL){
+    return -ENOENT;
+  }
+  uint32_t inum = pent->d_inum;
+  pent->d_inum = 0;
+  memset(pent->d_name, 0, NAME_MAX);
+  pino->i_nlink--;
+  if (!pino->i_nlink){
+    inode_free(inum);
+  }
+  return 0;
 }
 
 // Link the inode at the location srcpath to the new location dstpath.
@@ -386,8 +399,27 @@ inode_unlink(const char *path)
 int
 inode_link(const char *srcpath, const char *dstpath)
 {
-	// LAB: Your code here.
-	panic("inode_link not implemented");
+  int r;
+  struct inode *spdir, *spino, *npdir, *npino;
+  struct dirent *spent, *npent;
+  char lastelem[NAME_MAX];
+  r = walk_path(srcpath, &spdir, &spino, &spent, lastelem);
+  if(r < 0){
+    return r;
+  }
+
+  r = walk_path(dstpath, &npdir, &npino, &npent, lastelem);
+
+  if (!r && npino != NULL){
+    return -EEXIST;
+  }
+
+  r = dir_alloc_dirent(npdir, &npent);
+  npent->d_inum = spent ->d_inum;
+  strncpy(npent->d_name, lastelem, NAME_MAX);
+
+  spino->i_nlink++;
+  return 0;
 }
 
 // Return information about the specified inode.
