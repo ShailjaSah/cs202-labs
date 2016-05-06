@@ -29,8 +29,76 @@
 int
 inode_block_walk(struct inode *ino, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-	// LAB: Your code here.
-	panic("inode_block_walk not implemented");
+  if (filebno < N_DIRECT){
+    *ppdiskbno = &ino->i_direct[filebno];
+    return 0;
+  } else if (filebno < N_INDIRECT + N_DIRECT){
+    if (ino->i_indirect){
+      *ppdiskbno = diskaddr(ino->i_indirect) + (filebno - N_DIRECT);
+      return 0;
+    }
+
+    if (!alloc){
+      return -ENOENT;
+    }
+
+    int bn = alloc_block();
+    if (bn == -ENOSPC){
+      return -ENOSPC;
+    }
+    ino->i_indirect = bn;
+    memset(diskaddr(bn), 0, BLKSIZE);
+    *ppdiskbno = diskaddr(bn) + (filebno - N_DIRECT);
+    return 0;
+  } else if (filebno < N_INDIRECT + N_DIRECT + N_DOUBLE){
+    if (ino->i_double){
+      uint32_t* indirect = diskaddr(ino->i_double)
+                                        + (filebno - N_DIRECT - N_INDIRECT) / N_INDIRECT;
+      if (*indirect){
+        *ppdiskbno = diskaddr(*indirect) + (filebno - N_DIRECT - N_INDIRECT) % N_INDIRECT;
+        return 0;
+      }
+
+      if (!alloc){
+        return -ENOENT;
+      }
+
+      int bn = alloc_block();
+      if (bn == -ENOSPC){
+        return -ENOSPC;
+      }
+
+      *indirect = bn;
+      memset(indirect, 0, BLKSIZE);
+      *ppdiskbno = diskaddr(bn) + (filebno - N_DIRECT - N_INDIRECT) % N_INDIRECT;
+      return 0;
+    }
+
+    if (!alloc){
+      return -ENOENT;
+    }
+
+    int bn = alloc_block();
+    if (bn == -ENOSPC){
+      return -ENOSPC;
+    }
+
+    ino->i_double = bn;
+    memset(diskaddr(ino->i_double), 0, BLKSIZE);
+
+    bn = alloc_block();
+    if (bn == -ENOSPC){
+      return -ENOSPC;
+    }
+
+    memset(diskaddr(bn), 0, BLKSIZE);
+    *(uint32_t *)(diskaddr(ino->i_double) + (filebno - N_DIRECT - N_INDIRECT) / N_INDIRECT) = bn;
+    *ppdiskbno = diskaddr(bn) + (filebno - N_DIRECT -N_INDIRECT) % N_INDIRECT;
+  } else {
+    return -EINVAL;
+  }
+
+  return 0; //make syntax checker happy
 }
 
 // Set *blk to the address in memory where the filebno'th block of
@@ -45,8 +113,24 @@ inode_block_walk(struct inode *ino, uint32_t filebno, uint32_t **ppdiskbno, bool
 int
 inode_get_block(struct inode *ino, uint32_t filebno, char **blk)
 {
-	// LAB: Your code here.
-	panic("inode_get_block not implemented");
+  if (filebno >= N_DIRECT + N_INDIRECT + N_DOUBLE){
+    return -EINVAL;
+  }
+  uint32_t *ppdiskbno;
+  inode_block_walk(ino, filebno, &ppdiskbno, 1);
+  if (*ppdiskbno){
+    *blk = diskaddr(*ppdiskbno);
+    return 0;
+  }
+
+  int bn = alloc_block();
+  if (bn == -ENOSPC){
+    return -ENOSPC;
+  }
+
+  *ppdiskbno = bn;
+  *blk = diskaddr(bn);
+  return 0;
 }
 
 // Create "path".  On success set *pino to point at the inode and return 0.
