@@ -40,8 +40,13 @@ alloc_block(void)
 	// The bitmap consists of one or more blocks.  A single bitmap block
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
-
-	// LAB: Your code here.
-	panic("alloc_block not implemented");
+  for (uint32_t i = 1; i < super->s_nblocks; i++){
+    if (block_is_free(i)){
+      uint32_t blockno = i;
+      bitmap[blockno/32] &= 0 << (blockno % 32);
+      flush_block(&bitmap[blockno/32]);
+      return blockno;
+    }
+  }
 	return -ENOSPC;
 }
