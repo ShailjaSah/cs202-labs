@@ -277,9 +277,27 @@ inode_truncate_blocks(struct inode *ino, uint32_t newsize)
 {
 	int r;
 	uint32_t bno, old_nblocks, new_nblocks;
+  old_nblocks = ino->i_size / BLKSIZE;
+  old_nblocks = ino->i_size % BLKSIZE ? old_nblocks + 1 : old_nblocks;
+  new_nblocks = newsize / BLKSIZE;
+  new_nblocks = newsize % BLKSIZE ? newsize + 1 : newsize;
 
-	// LAB: Your code here.
-	panic("inode_truncate_blocks not implemented");
+  for (bno = new_nblocks; bno < old_nblocks; bno++){
+    inode_free_block(ino, bno);
+  }
+  if (new_nblocks < N_DIRECT + N_INDIRECT){
+    if (ino->i_double){
+      uint32_t *ptr;
+      for (ptr = diskaddr(ino->i_double); ptr < (uint32_t *)diskaddr(ino->i_double) + BLKSIZE / 4; ptr++){
+        free_block(*ptr);
+      }
+      free_block(ino->i_double);
+    }
+  }
+  if (new_nblocks < N_DIRECT && ino->i_indirect){
+    free_block(ino->i_indirect);
+  }
+
 }
 
 // Set the size of inode ino, truncating or extending as necessary.
