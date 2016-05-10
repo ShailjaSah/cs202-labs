@@ -30,3 +30,6 @@
 
 # Debug files
 *.dSYM/
+*-handin.tgz
+*-handin.tar.gz
+.*.swp
