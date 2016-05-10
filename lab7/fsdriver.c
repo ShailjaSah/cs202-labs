@@ -147,12 +147,15 @@ int
 fs_mknod(const char *path, mode_t mode, dev_t rdev)
 {
 	struct fuse_context *ctxt = fuse_get_context();
-        /*
-         * TODO: Your code here
-         * Add an entry to log using log_tx_add before calling fs_mknod_install
-         * Use log_args_t.mknod_args field to store the necessary info
-         */
-	return fs_mknod_install(path, mode, rdev, ctxt->uid, ctxt->gid, time(NULL));
+  log_args_t args;
+  strcpy(args.mknod_args.path, path);
+  args.mknod_args.mode = mode;
+  args.mknod_args.rdev = rdev;
+  args.mknod_args.uid = ctxt->uid;
+  args.mknod_args.gid = ctxt->gid;
+  time_t current_time = time(NULL);
+  log_tx_add(OP_MKNOD, &args, current_time);
+	return fs_mknod_install(path, mode, rdev, ctxt->uid, ctxt->gid, current_time);
 }
 
 /*
@@ -222,12 +225,11 @@ fs_readdir_install(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
 int
 fs_unlink(const char *path)
 {
-        /*
-         * TODO: Your code here
-         * Add an entry to log using log_tx_add before calling fs_unlink_install
-         * Use log_args_t.unlink_args_t to store the path info
-         */
-	return fs_unlink_install(path, time(NULL));
+  log_args_t args;
+  time_t curtime = time(NULL);
+  strcpy(args.unlink_args.path, path);
+  log_tx_add(OP_UNLINK, &args, curtime);
+	return fs_unlink_install(path, curtime);
 }
 
 /*
@@ -250,12 +252,12 @@ fs_unlink_install(const char *path, time_t curtime)
 int
 fs_rename(const char *srcpath, const char *dstpath)
 {
-        /*
-         * TODO: Your code here
-         * Add an entry to log using log_tx_add
-         * Use log_args_t.rename_args to store the necessary info
-         */
-	return fs_rename_install(srcpath, dstpath, time(NULL));
+  log_args_t args;
+  time_t curtime = time(NULL);
+  strcpy(args.rename_args.srcpath, srcpath);
+  strcpy(args.rename_args.dstpath, dstpath);
+  log_tx_add(OP_RENAME, &args, curtime);
+	return fs_rename_install(srcpath, dstpath, curtime);
 }
 
 int
@@ -281,13 +283,12 @@ link_retry:
 int
 fs_link(const char *srcpath, const char *dstpath)
 {
-	//
-        /*
-         * TODO: Your code here
-         * Add a entry to log using log_tx_add before callign fs_link_install
-         * use log_args_t.link_args to store the necessary info
-         */
-	return fs_link_install(srcpath, dstpath, time(NULL));
+  log_args_t args;
+  time_t curtime = time(NULL);
+  strcpy(args.link_args.srcpath, srcpath);
+  strcpy(args.link_args.dstpath, dstpath);
+  log_tx_add(OP_LINK, &args, curtime);
+	return fs_link_install(srcpath, dstpath, curtime);
 }
 
 int
@@ -375,12 +376,12 @@ fs_chown_install(const char *path, uid_t uid, gid_t gid, time_t curtime)
 int
 fs_truncate(const char *path, off_t size)
 {
-	/*
-         * TODO: Your code here
-         * Add an entry to log before calling fs_truncate_install
-         * Use log_args_t.truncate_args to store necessary info
-         */
-	return fs_truncate_install(path, size, time(NULL));
+  log_args_t args;
+  time_t curtime = time(NULL);
+  strcpy(args.truncate_args.path, path);
+  args.truncate_args.size = size;
+  log_tx_add(OP_TRUNCATE, &args, curtime);
+	return fs_truncate_install(path, size, curtime);
 }
 
 int
@@ -433,14 +434,16 @@ fs_read_install(const char *path, char *buf, size_t size, off_t offset, uint32_t
 int
 fs_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-	/*
-         * TODO: Your code here
-         * Add an entry to log before calling fs_write_install
-         * Use log_args_t.write_args to store the necessary info
-         * the block number of the inode at path can be found at fi->fh
-         */
+  log_args_t args;
+  time_t curtime = time(NULL);
+  strcpy(args.write_args.path, path);
+  strcpy(args.write_args.buf, buf);
+  args.write_args.size = size;
+  args.write_args.offset = offset;
+  args.write_args.i_num = (uint32_t)fi->fh;
+  log_tx_add(OP_WRITE,&args, curtime);
 
-	return fs_write_install(path, buf, size, offset, (uint32_t)fi->fh, time(NULL));
+	return fs_write_install(path, buf, size, offset, (uint32_t)fi->fh, curtime);
 }
 
 int

@@ -33,8 +33,13 @@ void
 log_tx_add(operation_t op, const log_args_t *log_args, time_t time)
 {
 	struct log *log = s_log;
-	// TODO: Your code here.
-        panic("log_tx_add not implemented\n");
+  struct log_entry *entry = &log->entries[log->nentries++];
+  entry->txn_id = log->txn_id;
+  entry->op = op;
+  entry->time = time;
+  if (log_args){
+    entry->args = *log_args;
+  }
 }
 
 /*
@@ -53,8 +58,14 @@ int
 log_tx_done()
 {
 	struct log *log = s_log;
-	// TODO: Your code here.
-	panic("log_tx_done not implemented\n");
+  struct log_entry entry;
+  entry.txn_id = log->txn_id;
+  entry.op = OP_COMMIT;
+  log->entries[log->nentries] = entry;
+  msync(log, sizeof(struct log), MS_SYNC);
+  log->txn_id++;
+  log->nentries++;
+  msync(log, SECTORSIZE, MS_SYNC);
 	return TX_COMMIT;
 }
 
@@ -88,6 +99,8 @@ log_entry_install(const struct log_entry* entry) {
 			}
 		case OP_MKNOD:
 			{
+        const struct mknod_args_t *args = &entry->args.mknod_args;
+        fs_mknod_install(args->path, args->mode, args->rdev, args->uid, args->gid, entry->time);
 				break;
 			}
 		case OP_OPEN:
@@ -100,14 +113,20 @@ log_entry_install(const struct log_entry* entry) {
 			}
 		case OP_UNLINK:
 			{
+        const struct unlink_args_t *args = &entry->args.unlink_args;
+        fs_unlink_install(args->path, entry->time);
 				break;
 			}
 		case OP_RENAME:
 			{
+        const struct rename_args_t *args = &entry->args.rename_args;
+        fs_rename_install(args->srcpath, args->dstpath, entry->time);
 				break;
 			}
 		case OP_LINK:
 			{
+        const struct link_args_t *args = &entry->args.link_args;
+        fs_link_install(args->srcpath, args->dstpath, entry->time);
 				break;
 			}
 		case OP_CHMOD:
@@ -124,6 +143,8 @@ log_entry_install(const struct log_entry* entry) {
 			}
 		case OP_TRUNCATE:
 			{
+        const struct truncate_args_t *args = &entry->args.truncate_args;
+        fs_truncate_install(args->path, args->size, entry->time);
 				break;
 			}
 		case OP_READ:
@@ -134,6 +155,8 @@ log_entry_install(const struct log_entry* entry) {
 			}
 		case OP_WRITE:
 			{
+        const struct write_args_t *args = &entry->args.write_args;
+        fs_write_install(args->path, args->buf, args->size, args->offset, args->i_num, entry->time);
 				break;
 			}
 		case OP_STATFS:
@@ -177,5 +200,26 @@ log_entry_install(const struct log_entry* entry) {
 void
 log_replay() {
 	struct log *log = s_log;
-	// TODO: Your code here
+  uint32_t size = (log->txn_id - log->entries[0].txn_id) * sizeof(uint32_t);
+  uint32_t* ids = malloc(size);
+  memset(ids, 0, size);
+  uint32_t p = 0;
+  for (uint32_t i = 0; i < log->nentries; i++){
+    if (log->entries[i].op == OP_COMMIT){
+      ids[p] = log->entries[i].txn_id;
+      p++;
+    }
+  }
+
+  for (uint32_t i = 0; i < log->nentries; i++){
+    uint32_t id = log->entries[i].txn_id;
+    for (uint32_t j = 0; j < p; j++){
+      if (id == ids[j]){
+        log_entry_install(&log->entries[i]);
+        break;
+      }
+    }
+  }
+
+  free(ids);
 }
